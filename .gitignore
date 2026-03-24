@@ -1,0 +1,43 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Build / packaging
+build/
+dist/
+*.egg-info/
+
+# IDE / editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Runtime outputs
+outputs/
+logs/
+cache/
+tmp/
+temp/
+
+# Local app state / secrets
+.ace-tool/
+config.yaml
+search_history.json
+.env
+.env.*
+config.local.*
+*.log

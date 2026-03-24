@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>纯HTML图片/视频生成</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 1150px;
+      margin: 24px auto;
+      padding: 0 16px;
+      background: #f6f7fb;
+      color: #222;
+    }
+    h1, h2, h3 { margin-top: 0; }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 18px;
+      margin-bottom: 18px;
+      box-shadow: 0 2px 10px rgba(0,0,0,.06);
+    }
+    label {
+      display: block;
+      margin: 10px 0 6px;
+      font-weight: 600;
+    }
+    input, textarea, select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px 12px;
+      border: 1px solid #d9d9d9;
+      border-radius: 8px;
+      font-size: 14px;
+      background: #fff;
+    }
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    .row-3 {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 16px;
+    }
+    .btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+    }
+    button {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      background: #1677ff;
+      color: #fff;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    button:disabled {
+      background: #9dbcf1;
+      cursor: not-allowed;
+    }
+    .danger { background: #cf1322; }
+    .gray { background: #666; }
+    .green { background: #1f8f3a; }
+
+    .status {
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-weight: 700;
+      background: #f0f2f5;
+    }
+    .loading { background: #eaf3ff; color: #1677ff; }
+    .success { background: #eaf8ee; color: #1f8f3a; }
+    .error { background: #fff1f0; color: #cf1322; }
+    .stopped { background: #fff7e6; color: #ad6800; }
+
+    .result-list a {
+      display: block;
+      margin: 6px 0;
+      color: #1677ff;
+      word-break: break-all;
+    }
+
+    .gallery {
+      margin-top: 12px;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .gallery-item,
+    .history-item {
+      background: #fafafa;
+      border: 1px solid #eee;
+      border-radius: 10px;
+      padding: 12px;
+    }
+    .gallery img {
+      width: 100%;
+      border-radius: 8px;
+      display: block;
+      background: #eee;
+      margin-bottom: 10px;
+    }
+    .video-box video,
+    .history-video video {
+      width: 100%;
+      max-width: 720px;
+      border-radius: 10px;
+      background: #000;
+      margin-top: 10px;
+    }
+
+    .history-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .history-meta {
+      font-size: 12px;
+      color: #666;
+      margin-top: 4px;
+    }
+    .history-prompt {
+      margin: 10px 0 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .small {
+      font-size: 12px;
+      color: #666;
+      margin-top: 8px;
+    }
+    .inline-btns {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>纯 HTML 图片 / 视频生成</h1>
+
+  <div class="card">
+    <h2>基础配置</h2>
+    <div class="row">
+      <div>
+        <label for="baseUrl">BASE_URL</label>
+        <input id="baseUrl" type="text" value="" />
+      </div>
+      <div>
+        <label for="apiKey">API_KEY</label>
+        <input id="apiKey" type="password" placeholder="请输入 API_KEY" />
+      </div>
+    </div>
+    <div class="btns">
+      <button id="saveConfigBtn" class="green">保存配置</button>
+      <button id="clearConfigBtn" class="gray">清除本地配置</button>
+    </div>
+    <div class="small">
+      配置和历史记录保存在浏览器本地 localStorage。纯 HTML 模式下 API_KEY 会保存在浏览器中，请只在个人设备使用。
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>图片生成</h2>
+    <label for="imagePrompt">提示词</label>
+    <textarea id="imagePrompt" placeholder="请输入图片提示词"></textarea>
+
+    <div class="row">
+      <div>
+        <label for="imageCount">图片数量</label>
+        <input id="imageCount" type="number" min="1" max="10" value="1" />
+      </div>
+      <div>
+        <label for="imageConcurrency">并发数</label>
+        <input id="imageConcurrency" type="number" min="1" max="10" value="10" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="imageRetries">最大重试次数</label>
+        <input id="imageRetries" type="number" min="0" value="0" />
+      </div>
+      <div>
+        <label for="imageSize">size</label>
+        <select id="imageSize">
+          <option value="1024x1024" selected>1024x1024</option>
+          <option value="1536x1024">1536x1024</option>
+          <option value="1024x1536">1024x1536</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="btns">
+      <button id="generateImageBtn">开始生成图片</button>
+      <button id="stopImageBtn" class="danger" disabled>停止生成图片</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>图片状态</h3>
+    <div id="imageStatus" class="status">未开始</div>
+  </div>
+
+  <div class="card">
+    <h3>图片结果</h3>
+    <div class="btns">
+      <button id="saveAllImagesBtn" class="green" disabled>保存全部图片到本地</button>
+    </div>
+    <div id="imageResultUrls" class="result-list"></div>
+    <div id="imageGallery" class="gallery"></div>
+  </div>
+
+  <div class="card">
+    <h2>视频生成</h2>
+    <label for="videoPrompt">提示词</label>
+    <textarea id="videoPrompt" placeholder="请输入视频提示词"></textarea>
+
+    <div class="row-3">
+      <div>
+        <label for="videoSize">size</label>
+        <select id="videoSize">
+          <option value="1280x720" selected>1280x720</option>
+          <option value="720x1280">720x1280</option>
+          <option value="1792x1024">1792x1024</option>
+          <option value="1024x1792">1024x1792</option>
+          <option value="1024x1024">1024x1024</option>
+        </select>
+      </div>
+      <div>
+        <label for="videoSeconds">seconds</label>
+        <input id="videoSeconds" type="number" min="6" max="30" value="6" />
+      </div>
+      <div>
+        <label for="videoQuality">quality</label>
+        <select id="videoQuality">
+          <option value="standard" selected>standard</option>
+          <option value="high">high</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
+        <label for="videoReference">参考图 URL（可选）</label>
+        <input id="videoReference" type="text" placeholder="https://... 或 /xxx.png" />
+      </div>
+      <div>
+        <label for="videoRetries">最大重试次数</label>
+        <input id="videoRetries" type="number" min="0" value="0" />
+      </div>
+    </div>
+
+    <!-- 新增：视频并发数 -->
+    <div class="row">
+      <div>
+        <label for="videoConcurrency">并发数</label>
+        <input id="videoConcurrency" type="number" min="1" max="10" value="3" />
+      </div>
+      <div>
+        <label>说明</label>
+        <input disabled value="建议 1~3" />
+      </div>
+    </div>
+
+    <div class="btns">
+      <button id="generateVideoBtn">开始生成视频</button>
+      <button id="stopVideoBtn" class="danger" disabled>停止生成视频</button>
+      <button id="saveVideoBtn" class="green" disabled>保存视频到本地</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>视频状态</h3>
+    <div id="videoStatus" class="status">未开始</div>
+  </div>
+
+  <div class="card">
+    <h3>视频结果</h3>
+    <div id="videoResultUrls" class="result-list"></div>
+    <div id="videoBox" class="video-box"></div>
+  </div>
+
+  <div class="card">
+    <div class="history-header">
+      <div>
+        <h2 style="margin:0;">历史记录</h2>
+        <div class="history-meta">保存在浏览器本地，除非你手动删除或清空浏览器数据</div>
+      </div>
+      <div class="inline-btns">
+        <button id="exportHistoryBtn" class="gray">导出历史 JSON</button>
+        <button id="clearHistoryBtn" class="danger">清空历史</button>
+      </div>
+    </div>
+    <div id="historyList" class="history-list"></div>
+  </div>
+
+  <script>
+    const STORAGE_KEYS = {
+      baseUrl: "pure_html_gen_base_url",
+      apiKey: "pure_html_gen_api_key",
+      history: "pure_html_gen_history"
+    };
+
+    const IMAGE_MODEL = "grok-imagine-1.0";
+    const VIDEO_MODEL = "grok-imagine-1.0-video";
+    const REQUEST_TIMEOUT = 120000;
+    const MEDIA_READY_MAX_CHECKS = 30;
+    const MEDIA_READY_INTERVAL = 3000;
+
+    // 图片/视频并发：为了避免把接口打爆，做个硬上限（你也可以改成 20 或直接去掉上限）
+    const MAX_IMAGE_CONCURRENCY = 20;
+    const MAX_VIDEO_CONCURRENCY = 20;
+
+    const baseUrlInput = document.getElementById("baseUrl");
+    const apiKeyInput = document.getElementById("apiKey");
+    const saveConfigBtn = document.getElementById("saveConfigBtn");
+    const clearConfigBtn = document.getElementById("clearConfigBtn");
+
+    const imagePromptInput = document.getElementById("imagePrompt");
+    const imageCountInput = document.getElementById("imageCount");
+    const imageConcurrencyInput = document.getElementById("imageConcurrency");
+    const imageRetriesInput = document.getElementById("imageRetries");
+    const imageSizeInput = document.getElementById("imageSize");
+    const generateImageBtn = document.getElementById("generateImageBtn");
+    const stopImageBtn = document.getElementById("stopImageBtn");
+    const imageStatusEl = document.getElementById("imageStatus");
+    const imageResultUrlsEl = document.getElementById("imageResultUrls");
+    const imageGalleryEl = document.getElementById("imageGallery");
+    const saveAllImagesBtn = document.getElementById("saveAllImagesBtn");
+
+    const videoPromptInput = document.getElementById("videoPrompt");
+    const videoSizeInput = document.getElementById("videoSize");
+    const videoSecondsInput = document.getElementById("videoSeconds");
+    const videoQualityInput = document.getElementById("videoQuality");
+    const videoReferenceInput = document.getElementById("videoReference");
+    const videoRetriesInput = document.getElementById("videoRetries");
+    const videoConcurrencyInput = document.getElementById("videoConcurrency"); // 新增
+    const generateVideoBtn = document.getElementById("generateVideoBtn");
+    const stopVideoBtn = document.getElementById("stopVideoBtn");
+    const saveVideoBtn = document.getElementById("saveVideoBtn");
+    const videoStatusEl = document.getElementById("videoStatus");
+    const videoResultUrlsEl = document.getElementById("videoResultUrls");
+    const videoBoxEl = document.getElementById("videoBox");
+
+    const historyListEl = document.getElementById("historyList");
+    const exportHistoryBtn = document.getElementById("exportHistoryBtn");
+    const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+
+    let currentImageUrls = [];
+    let currentVideoUrl = "";
+
+    let imageStopFlag = false;
+    let videoStopFlag = false;
+
+    let imageControllers = [];
+    let videoControllers = []; // 改成数组：视频并发需要多个 controller
+
+    function setStatus(el, text, cls = "") {
+      el.textContent = text;
+      el.className = "status" + (cls ? " " + cls : "");
+    }
+
+    function normalizeUrl(url, baseUrl) {
+      if (!url) return "";
+      const b = baseUrl.replace(/\/+$/, "");
+      if (/^https?:\/\//i.test(url)) return url;
+      if (url.startsWith("/")) return b + url;
+      return b + "/" + url;
+    }
+
+    function sleep(ms) {
+      return new Promise(resolve => setTimeout(resolve, ms));
+    }
+
+    function timeoutSignal(ms, extraSignal) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort("timeout"), ms);
+
+      if (extraSignal) {
+        extraSignal.addEventListener("abort", () => controller.abort(extraSignal.reason || "aborted"));
+      }
+
+      return {
+        signal: controller.signal,
+        clear() { clearTimeout(timer); }
+      };
+    }
+
+    function saveConfig() {
+      localStorage.setItem(STORAGE_KEYS.baseUrl, baseUrlInput.value.trim());
+      localStorage.setItem(STORAGE_KEYS.apiKey, apiKeyInput.value.trim());
+    }
+
+    function loadConfig() {
+      const baseUrl = localStorage.getItem(STORAGE_KEYS.baseUrl);
+      const apiKey = localStorage.getItem(STORAGE_KEYS.apiKey);
+      if (baseUrl) baseUrlInput.value = baseUrl;
+      if (apiKey) apiKeyInput.value = apiKey;
+    }
+
+    function clearConfig() {
+      localStorage.removeItem(STORAGE_KEYS.baseUrl);
+      localStorage.removeItem(STORAGE_KEYS.apiKey);
+      apiKeyInput.value = "";
+      alert("本地配置已清除");
+    }
+
+    function loadHistory() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEYS.history);
+        if (!raw) return [];
+        const data = JSON.parse(raw);
+        return Array.isArray(data) ? data : [];
+      } catch {
+        return [];
+      }
+    }
+
+    function saveHistory(items) {
+      localStorage.setItem(STORAGE_KEYS.history, JSON.stringify(items));
+    }
+
+    function appendHistory(item) {
+      const items = loadHistory();
+      items.unshift(item);
+      saveHistory(items);
+      renderHistory();
+    }
+
+    function deleteHistory(id) {
+      const items = loadHistory().filter(x => x.id !== id);
+      saveHistory(items);
+      renderHistory();
+    }
+
+    function clearHistory() {
+      saveHistory([]);
+      renderHistory();
+    }
+
+    function formatTime(ts) {
+      const d = new Date(ts);
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      const h = String(d.getHours()).padStart(2, "0");
+      const min = String(d.getMinutes()).padStart(2, "0");
+      const s = String(d.getSeconds()).padStart(2, "0");
+      return `${y}-${m}-${day} ${h}:${min}:${s}`;
+    }
+
+    function makeId() {
+      return "id_" + Date.now() + "_" + Math.random().toString(36).slice(2, 10);
+    }
+
+    function extractImageUrls(data, baseUrl) {
+      const urls = [];
+      const arr = Array.isArray(data?.data) ? data.data : [];
+      for (const item of arr) {
+        if (!item || typeof item !== "object") continue;
+        const url = item.url || item.image_url;
+        if (url) urls.push(normalizeUrl(url, baseUrl));
+      }
+      return [...new Set(urls)];
+    }
+
+    function extractVideoUrls(data, baseUrl) {
+      const list = [];
+      ["url", "video_url", "file_url"].forEach(k => {
+        if (typeof data?.[k] === "string") list.push(data[k]);
+      });
+
+      ["data", "output"].forEach(groupKey => {
+        const group = data?.[groupKey];
+        if (Array.isArray(group)) {
+          group.forEach(item => {
+            if (!item || typeof item !== "object") return;
+            ["url", "video_url", "file_url"].forEach(k => {
+              if (typeof item[k] === "string") list.push(item[k]);
+            });
+          });
+        }
+      });
+
+      return [...new Set(list.map(x => normalizeUrl(x, baseUrl)).filter(Boolean))];
+    }
+
+    async function checkMediaReady(url, type, externalSignal) {
+      try {
+        const t = timeoutSignal(30000, externalSignal);
+        const resp = await fetch(url, {
+          method: "GET",
+          cache: "no-store",
+          signal: t.signal
+        });
+        t.clear();
+
+        if (!resp.ok) return false;
+        const contentType = (resp.headers.get("content-type") || "").toLowerCase();
+
+        if (type === "image") return contentType.startsWith("image/");
+        if (type === "video") return contentType.startsWith("video/") || contentType.includes("application/octet-stream");
+        return false;
+      } catch {
+        return false;
+      }
+    }
+
+    async function waitForImagesReady(urls, signal) {
+      for (let i = 0; i < MEDIA_READY_MAX_CHECKS; i++) {
+        if (signal?.aborted || imageStopFlag) return null;
+        const results = await Promise.all(urls.map(url => checkMediaReady(url, "image", signal)));
+        if (results.every(Boolean)) return urls;
+        await sleep(MEDIA_READY_INTERVAL);
+      }
+      return null;
+    }
+
+    async function waitForVideoReady(url, signal) {
+      for (let i = 0; i < MEDIA_READY_MAX_CHECKS; i++) {
+        if (signal?.aborted || videoStopFlag) return null;
+        const ok = await checkMediaReady(url, "video", signal);
+        if (ok) return url;
+        await sleep(MEDIA_READY_INTERVAL);
+      }
+      return null;
+    }
+
+    async function postJson(url, payload, signal, apiKey) {
+      const t = timeoutSignal(REQUEST_TIMEOUT, signal);
+      try {
+        const resp = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+          },
+          body: JSON.stringify(payload),
+          signal: t.signal
+        });
+
+        const text = await resp.text();
+        let data = {};
+        try { data = text ? JSON.parse(text) : {}; } catch { data = { raw: text }; }
+
+        if (!resp.ok) {
+          throw new Error(`HTTP ${resp.status} ${JSON.stringify(data)}`);
+        }
+
+        return data;
+      } finally {
+        t.clear();
+      }
+    }
+
+    function clearImageOutput() {
+      currentImageUrls = [];
+      imageResultUrlsEl.innerHTML = "";
+      imageGalleryEl.innerHTML = "";
+      saveAllImagesBtn.disabled = true;
+    }
+
+    function clearVideoOutput() {
+      currentVideoUrl = "";
+      videoResultUrlsEl.innerHTML = "";
+      videoBoxEl.innerHTML = "";
+      saveVideoBtn.disabled = true;
+    }
+
+    function renderImageResult(urls) {
+      clearImageOutput();
+      currentImageUrls = urls || [];
+      if (!currentImageUrls.length) return;
+
+      currentImageUrls.forEach((url, index) => {
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.textContent = `图片地址 ${index + 1}: ${url}`;
+        imageResultUrlsEl.appendChild(link);
+
+        const card = document.createElement("div");
+        card.className = "gallery-item";
+
+        const img = document.createElement("img");
+        img.src = url;
+
+        const btns = document.createElement("div");
+        btns.className = "inline-btns";
+
+        const openBtn = document.createElement("button");
+        openBtn.className = "gray";
+        openBtn.textContent = "打开原图";
+        openBtn.onclick = () => window.open(url, "_blank");
+
+        const saveBtn = document.createElement("button");
+        saveBtn.className = "green";
+        saveBtn.textContent = "保存到本地";
+        saveBtn.onclick = () => downloadFile(url, `image_${Date.now()}_${index + 1}`);
+
+        btns.appendChild(openBtn);
+        btns.appendChild(saveBtn);
+
+        card.appendChild(img);
+        card.appendChild(btns);
+        imageGalleryEl.appendChild(card);
+      });
+
+      saveAllImagesBtn.disabled = false;
+    }
+
+    function renderVideoResult(url) {
+      clearVideoOutput();
+      currentVideoUrl = url || "";
+      if (!currentVideoUrl) return;
+
+      const link = document.createElement("a");
+      link.href = currentVideoUrl;
+      link.target = "_blank";
+      link.textContent = `视频地址: ${currentVideoUrl}`;
+      videoResultUrlsEl.appendChild(link);
+
+      const video = document.createElement("video");
+      video.src = currentVideoUrl;
+      video.controls = true;
+      video.playsInline = true;
+      videoBoxEl.appendChild(video);
+
+      saveVideoBtn.disabled = false;
+    }
+
+    function renderHistory() {
+      const items = loadHistory();
+      historyListEl.innerHTML = "";
+
+      if (!items.length) {
+        historyListEl.innerHTML = "<div class='history-item'>暂无历史记录</div>";
+        return;
+      }
+
+      items.forEach(item => {
+        const wrap = document.createElement("div");
+        wrap.className = "history-item";
+
+        const header = document.createElement("div");
+        header.className = "history-header";
+
+        const left = document.createElement("div");
+        left.innerHTML = `
+          <strong>${item.type === "image" ? "图片" : "视频"}</strong>
+          <div class="history-meta">${formatTime(item.created_at)}</div>
+        `;
+
+        const right = document.createElement("div");
+        right.className = "inline-btns";
+
+        const delBtn = document.createElement("button");
+        delBtn.className = "danger";
+        delBtn.textContent = "删除";
+        delBtn.onclick = () => {
+          if (confirm("确定删除这条历史吗？")) deleteHistory(item.id);
+        };
+
+        right.appendChild(delBtn);
+        header.appendChild(left);
+        header.appendChild(right);
+
+        const prompt = document.createElement("div");
+        prompt.className = "history-prompt";
+        prompt.textContent = item.prompt || "";
+
+        wrap.appendChild(header);
+        wrap.appendChild(prompt);
+
+        if (item.type === "image" && Array.isArray(item.urls)) {
+          const links = document.createElement("div");
+          links.className = "result-list";
+
+          const gallery = document.createElement("div");
+          gallery.className = "gallery";
+
+          item.urls.forEach((url, idx) => {
+            const a = document.createElement("a");
+            a.href = url;
+            a.target = "_blank";
+            a.textContent = `图片地址 ${idx + 1}: ${url}`;
+            links.appendChild(a);
+
+            const card = document.createElement("div");
+            card.className = "gallery-item";
+
+            const img = document.createElement("img");
+            img.src = url;
+
+            const btns = document.createElement("div");
+            btns.className = "inline-btns";
+
+            const openBtn = document.createElement("button");
+            openBtn.className = "gray";
+            openBtn.textContent = "打开";
+            openBtn.onclick = () => window.open(url, "_blank");
+
+            const saveBtn = document.createElement("button");
+            saveBtn.className = "green";
+            saveBtn.textContent = "保存到本地";
+            saveBtn.onclick = () => downloadFile(url, `history_image_${idx + 1}`);
+
+            btns.appendChild(openBtn);
+            btns.appendChild(saveBtn);
+
+            card.appendChild(img);
+            card.appendChild(btns);
+            gallery.appendChild(card);
+          });
+
+          wrap.appendChild(links);
+          wrap.appendChild(gallery);
+        }
+
+        if (item.type === "video" && item.url) {
+          const links = document.createElement("div");
+          links.className = "result-list";
+
+          const a = document.createElement("a");
+          a.href = item.url;
+          a.target = "_blank";
+          a.textContent = `视频地址: ${item.url}`;
+          links.appendChild(a);
+
+          const box = document.createElement("div");
+          box.className = "history-video";
+
+          const video = document.createElement("video");
+          video.src = item.url;
+          video.controls = true;
+          video.playsInline = true;
+
+          const btns = document.createElement("div");
+          btns.className = "inline-btns";
+
+          const openBtn = document.createElement("button");
+          openBtn.className = "gray";
+          openBtn.textContent = "打开";
+          openBtn.onclick = () => window.open(item.url, "_blank");
+
+          const saveBtn = document.createElement("button");
+          saveBtn.className = "green";
+          saveBtn.textContent = "保存到本地";
+          saveBtn.onclick = () => downloadFile(item.url, `history_video_${Date.now()}`);
+
+          btns.appendChild(openBtn);
+          btns.appendChild(saveBtn);
+
+          box.appendChild(video);
+          box.appendChild(btns);
+
+          wrap.appendChild(links);
+          wrap.appendChild(box);
+        }
+
+        historyListEl.appendChild(wrap);
+      });
+    }
+
+    async function downloadFile(url, filenamePrefix = "download") {
+      try {
+        const resp = await fetch(url, { mode: "cors" });
+        if (!resp.ok) throw new Error("下载失败");
+        const blob = await resp.blob();
+
+        let ext = "";
+        const type = blob.type || "";
+        if (type.includes("png")) ext = ".png";
+        else if (type.includes("jpeg") || type.includes("jpg")) ext = ".jpg";
+        else if (type.includes("webp")) ext = ".webp";
+        else if (type.includes("gif")) ext = ".gif";
+        else if (type.includes("mp4")) ext = ".mp4";
+        else if (type.includes("webm")) ext = ".webm";
+
+        const blobUrl = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = blobUrl;
+        a.download = filenamePrefix + ext;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(blobUrl);
+      } catch (e) {
+        alert("保存失败，可能是目标文件不支持跨域下载。你可以点击原始链接后手动另存为。");
+      }
+    }
+
+    async function downloadAllImages() {
+      if (!currentImageUrls.length) return;
+      for (let i = 0; i < currentImageUrls.length; i++) {
+        await downloadFile(currentImageUrls[i], `image_${Date.now()}_${i + 1}`);
+        await sleep(300);
+      }
+    }
+
+    function setImageRunning(running) {
+      generateImageBtn.disabled = running;
+      stopImageBtn.disabled = !running;
+    }
+
+    function setVideoRunning(running) {
+      generateVideoBtn.disabled = running;
+      stopVideoBtn.disabled = !running;
+    }
+
+    function stopAllImageControllers() {
+      imageControllers.forEach(c => {
+        try { c.abort("stopped"); } catch {}
+      });
+      imageControllers = [];
+    }
+
+    // 新增：停止全部视频 controller（用于并发）
+    function stopAllVideoControllers() {
+      videoControllers.forEach(c => {
+        try { c.abort("stopped"); } catch {}
+      });
+      videoControllers = [];
+    }
+
+    async function singleImageAttempt(payload, baseUrl, apiKey, controller) {
+      const data = await postJson(
+        `${baseUrl.replace(/\/+$/, "")}/v1/images/generations`,
+        payload,
+        controller.signal,
+        apiKey
+      );
+      const urls = extractImageUrls(data, baseUrl);
+      if (!urls.length) throw new Error("没有返回图片地址");
+      const readyUrls = await waitForImagesReady(urls, controller.signal);
+      if (!readyUrls) throw new Error("图片未就绪或已停止");
+      return readyUrls;
+    }
+
+    async function startImageGenerate() {
+      const baseUrl = baseUrlInput.value.trim();
+      const apiKey = apiKeyInput.value.trim();
+      const prompt = imagePromptInput.value.trim();
+      const n = Number(imageCountInput.value);
+      const concurrency = Math.min(MAX_IMAGE_CONCURRENCY, Math.max(1, Number(imageConcurrencyInput.value) || 1));
+      const maxRetries = Math.max(0, Number(imageRetriesInput.value) || 0);
+      const size = imageSizeInput.value;
+
+      if (!baseUrl) return alert("请输入 BASE_URL");
+      if (!apiKey) return alert("请输入 API_KEY");
+      if (!prompt) return alert("请输入图片提示词");
+
+      saveConfig();
+      clearImageOutput();
+      imageStopFlag = false;
+      stopAllImageControllers();
+      setImageRunning(true);
+      setStatus(imageStatusEl, `生成中（并发 ${concurrency}）`, "loading");
+
+      const payload = {
+        model: IMAGE_MODEL,
+        prompt,
+        n,
+        size,
+        response_format: "url",
+        stream: false
+      };
+
+      try {
+        const attempts = [];
+        const totalAttempts = maxRetries > 0 ? maxRetries : 999999;
+
+        for (let i = 0; i < concurrency; i++) {
+          attempts.push((async () => {
+            let count = 0;
+            while (!imageStopFlag) {
+              count++;
+              if (count > totalAttempts) throw new Error("超过最大重试次数");
+
+              const controller = new AbortController();
+              imageControllers.push(controller);
+
+              try {
+                const result = await singleImageAttempt(payload, baseUrl, apiKey, controller);
+                return result;
+              } catch (e) {
+                if (controller.signal.aborted || imageStopFlag) throw e;
+                await sleep(3000);
+              }
+            }
+            throw new Error("已停止");
+          })());
+        }
+
+        const urls = await Promise.any(attempts);
+        imageStopFlag = true;
+        stopAllImageControllers();
+
+        renderImageResult(urls);
+        setStatus(imageStatusEl, "生成成功", "success");
+        setImageRunning(false);
+
+        appendHistory({
+          id: makeId(),
+          type: "image",
+          prompt,
+          urls,
+          created_at: Date.now()
+        });
+      } catch (e) {
+        if (imageStopFlag) {
+          setStatus(imageStatusEl, "已停止", "stopped");
+        } else {
+          setStatus(imageStatusEl, "生成失败", "error");
+        }
+        setImageRunning(false);
+      }
+    }
+
+    function stopImageGenerate() {
+      imageStopFlag = true;
+      stopAllImageControllers();
+      setStatus(imageStatusEl, "已停止", "stopped");
+      setImageRunning(false);
+    }
+
+    // 新增：单次视频 attempt（一次 POST + 等待就绪）
+    async function singleVideoAttempt(payload, baseUrl, apiKey, controller) {
+      const data = await postJson(
+        `${baseUrl.replace(/\/+$/, "")}/v1/videos`,
+        payload,
+        controller.signal,
+        apiKey
+      );
+      const urls = extractVideoUrls(data, baseUrl);
+      if (!urls.length) throw new Error("没有返回视频地址");
+
+      const readyUrl = await waitForVideoReady(urls[0], controller.signal);
+      if (!readyUrl) throw new Error("视频未就绪或已停止");
+      return readyUrl;
+    }
+
+    async function startVideoGenerate() {
+      const baseUrl = baseUrlInput.value.trim();
+      const apiKey = apiKeyInput.value.trim();
+      const prompt = videoPromptInput.value.trim();
+      const size = videoSizeInput.value;
+      const seconds = Number(videoSecondsInput.value);
+      const quality = videoQualityInput.value;
+      const maxRetries = Math.max(0, Number(videoRetriesInput.value) || 0);
+      const imageReference = videoReferenceInput.value.trim();
+      const concurrency = Math.min(MAX_VIDEO_CONCURRENCY, Math.max(1, Number(videoConcurrencyInput.value) || 1)); // 新增
+
+      if (!baseUrl) return alert("请输入 BASE_URL");
+      if (!apiKey) return alert("请输入 API_KEY");
+      if (!prompt) return alert("请输入视频提示词");
+
+      saveConfig();
+      clearVideoOutput();
+      videoStopFlag = false;
+      stopAllVideoControllers();
+      setVideoRunning(true);
+      setStatus(videoStatusEl, `生成中（并发 ${concurrency}）`, "loading");
+
+      const payload = {
+        model: VIDEO_MODEL,
+        prompt,
+        size,
+        seconds,
+        quality
+      };
+
+      if (imageReference) {
+        payload.image_reference = {
+          image_url: normalizeUrl(imageReference, baseUrl)
+        };
+      }
+
+      try {
+        const totalAttempts = maxRetries > 0 ? maxRetries : 999999;
+        const attempts = [];
+
+        for (let i = 0; i < concurrency; i++) {
+          attempts.push((async () => {
+            let count = 0;
+
+            while (!videoStopFlag) {
+              count++;
+              if (count > totalAttempts) throw new Error("超过最大重试次数");
+
+              const controller = new AbortController();
+              videoControllers.push(controller);
+
+              try {
+                const url = await singleVideoAttempt(payload, baseUrl, apiKey, controller);
+                return url;
+              } catch (e) {
+                if (controller.signal.aborted || videoStopFlag) throw e;
+                await sleep(3000);
+              }
+            }
+
+            throw new Error("已停止");
+          })());
+        }
+
+        const resultUrl = await Promise.any(attempts);
+
+        // 有一个成功就停止其它并发
+        videoStopFlag = true;
+        stopAllVideoControllers();
+
+        renderVideoResult(resultUrl);
+        setStatus(videoStatusEl, "生成成功", "success");
+        setVideoRunning(false);
+
+        appendHistory({
+          id: makeId(),
+          type: "video",
+          prompt,
+          url: resultUrl,
+          size,
+          seconds,
+          quality,
+          created_at: Date.now()
+        });
+      } catch (e) {
+        if (videoStopFlag) {
+          setStatus(videoStatusEl, "已停止", "stopped");
+        } else {
+          setStatus(videoStatusEl, "生成失败", "error");
+        }
+        setVideoRunning(false);
+      }
+    }
+
+    function stopVideoGenerate() {
+      videoStopFlag = true;
+      stopAllVideoControllers();
+      setStatus(videoStatusEl, "已停止", "stopped");
+      setVideoRunning(false);
+    }
+
+    function exportHistory() {
+      const history = loadHistory();
+      const blob = new Blob([JSON.stringify(history, null, 2)], { type: "application/json;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "history.json";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    saveConfigBtn.addEventListener("click", () => {
+      saveConfig();
+      alert("配置已保存到浏览器本地");
+    });
+
+    clearConfigBtn.addEventListener("click", clearConfig);
+    generateImageBtn.addEventListener("click", startImageGenerate);
+    stopImageBtn.addEventListener("click", stopImageGenerate);
+    saveAllImagesBtn.addEventListener("click", downloadAllImages);
+
+    generateVideoBtn.addEventListener("click", startVideoGenerate);
+    stopVideoBtn.addEventListener("click", stopVideoGenerate);
+    saveVideoBtn.addEventListener("click", () => {
+      if (currentVideoUrl) downloadFile(currentVideoUrl, `video_${Date.now()}`);
+    });
+
+    clearHistoryBtn.addEventListener("click", () => {
+      if (confirm("确定清空全部历史记录吗？")) clearHistory();
+    });
+
+    exportHistoryBtn.addEventListener("click", exportHistory);
+
+    loadConfig();
+    renderHistory();
+  </script>
+</body>
+</html>
